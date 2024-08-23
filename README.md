@@ -40,6 +40,10 @@ Each node listed in /nodes may have the following `properties`:
 
 ## Other Features
 
+### Limit area
+Specify a point with `--latitude` and `--longitude`, and set `--max-distance` to limit the nodes recorded
+to within that number of kilometers of the point. Set `--max-distance 0` to disable the limit.
+
 ### Exclusive mode
 If you only want to map your own nodes, list each node id (one-per-line) in a file and pass that file
 to the `--exclusive` parameter.

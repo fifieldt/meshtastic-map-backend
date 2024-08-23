@@ -7,6 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from google.protobuf.json_format import MessageToDict
 import logging
+from math import sin, cos, sqrt, atan2, radians
 import paho.mqtt.client as mqtt
 import pickle
 from pubsub import pub
@@ -33,6 +34,7 @@ parser.add_argument('-b', '--ble', action='store_true', help='Use BLE to connect
 parser.add_argument('--latitude', default=25.0122, help='Latitude for centre of map')
 parser.add_argument('--longitude', default=121.468, help='Longitude for centre of map')
 parser.add_argument('--zoom', default=13, help='Initial map zoom setting')
+parser.add_argument('--max-distance', default=100, help='Ignore nodes outside this distance (km), 0 for infinite')
 parser.add_argument('--geojson', default="http://127.0.0.1:8100", help='URL to geojson source')
 parser.add_argument('--exclusive', help='Only show nodes in the provided file')
 parser.add_argument('--mqtt-host', default="mqtt.meshtastic.org", help='Hostname of MQTT Server')
@@ -103,11 +105,13 @@ def processPosition(pktfrom, data, max_precision=16):
         logging.warning("Position with no coordinates  %s" % data)
         return
 
-    latcheck = geoItoFloat(data["latitudeI"]) - cliargs.latitude
-    longcheck = geoItoFloat(data["longitudeI"]) - cliargs.longitude
-    if abs(latcheck) > 1 or abs(longcheck) > 1:
-        logging.debug("Coordinate Check Failed latcheck=%f, longcheck=%f, %s" %(latcheck, longcheck, data))
-        return
+    if cliargs.max_distance != 0:
+        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(cliargs.latitude)
+        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(cliargs.longitude)
+        a = sin(latdelta / 2)**2 + cos(radians(cliargs.latitude)) * cos(radians(data["latitudeI"])) * sin(londelta / 2)**2
+        if 6373.0 * (2 * atan2(sqrt(a), sqrt(1 - a))) > cliargs.max_distance:
+            logging.info("Coordinate Check Failed latcheck=%f, longcheck=%f, %s" %(latdelta, londelta, data))
+            return
 
     if pktfrom not in nodes.keys():
         nodes[pktfrom] = MapNode(pktfrom)
