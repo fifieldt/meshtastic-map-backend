@@ -144,14 +144,14 @@ class MapNode:
         return R * c
 
 
-    def setPosition(self, latitude, longitude, altitude=0):
+    def setPosition(self, latitude, longitude, precision=0, altitude=0):
         # we moved more than 3km since last position - invalidate neighbours if they are older
         # than an hour
         if self.roughDistance(latitude, longitude) > 3.0:
             for i in list(self.neighbours):
                 if datetime.fromtimestamp(self.neighbours[i][1] + 3600) < datetime.now():
                     del self.neighbours[i]
-
+        self.positionprecision = precision
         self.latitude = latitude
         self.longitude = longitude
         if altitude != 0:
@@ -160,6 +160,8 @@ class MapNode:
         self.positions[self.lastupdated] = [latitude, longitude]
 
     def toFeature(self, nodes):
+        if self.positionprecision == 0:
+            return "{}"
         return """
         {
           "type": "Feature",

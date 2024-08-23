@@ -112,7 +112,7 @@ def processPosition(pktfrom, data, max_precision=16):
     if pktfrom not in nodes.keys():
         nodes[pktfrom] = MapNode(pktfrom)
 
-    if "positionPrecision" in data.keys():
+    if "positionPrecision" in data.keys() and data["positionPrecision"] < max_precision:
         precision = data["positionPrecision"]
     else:
         precision = max_precision
@@ -127,19 +127,19 @@ def processPosition(pktfrom, data, max_precision=16):
                                                          data["longitudeI"],
                                                          data["altitude"],
                                                          data["satsInView"]))
-        nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), data["altitude"])
+        nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), precision, data["altitude"])
     elif "altitude" in data.keys():
         logging.info("[POSITION ] %s @ %d, %d %dm" %(nodes[pktfrom].getName(),
                                                     data["latitudeI"],
                                                     data["longitudeI"],
                                                     data["altitude"]))
-        nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), data["altitude"])
+        nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), precision, data["altitude"])
     else:
         logging.info("[POSITION ] %s @ %d, %d" %(nodes[pktfrom].getName(),
                                                 data["latitudeI"],
                                                 data["longitudeI"]))
 
-        nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]))
+        nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), precision)
 
 
 def processTelemetry(pktfrom, data):
