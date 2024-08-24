@@ -244,9 +244,10 @@ def onReceiveMQTT(client, data, msg):
 def onReceive(packet, interface):  # pylint: disable=unused-argument
     """called when a packet arrives"""
 
-    if "decoded" not in packet.keys():
+    if "decoded" not in packet.keys() or "portnum" not in packet["decoded"].keys():
             print(f"???Received: {packet}")
             return
+
     portnum = packet["decoded"]["portnum"]
 
     if portnum == "MAP_REPORT_APP":
