@@ -235,6 +235,12 @@ def onReceiveMQTT(client, data, msg):
             env.ParseFromString(mp.decoded.payload)
             mpdict["decoded"]["telemetry"] = MessageToDict(env)
 
+        elif mp.decoded.portnum == portnums_pb2.NEIGHBORINFO_APP:
+            ni = mesh_pb2.NeighborInfo()
+            ni.ParseFromString(mp.decoded.payload)
+            mpdict["decoded"]["neighborinfo"] = MessageToDict(ni)
+
+
     except Exception as e:
         logging.debug(f"*** Failed to process MQTT Packet {str(e)}")
 
