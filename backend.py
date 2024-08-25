@@ -42,6 +42,7 @@ parser.add_argument('--mqtt-port', default=1883, help='Port of MQTT Server')
 parser.add_argument('--mqtt-user', default="meshdev", help='MQTT account username')
 parser.add_argument('--mqtt-pass', default="large4cats", help='Password of MQTT account')
 parser.add_argument('--mqtt-topic', default="msh/TW/#", help='Topic to subscribe to MQTT')
+parser.add_argument('--mqtt-clientid', default="mesthastic-map-backend", help='MQTT client ID')
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
 
 cliargs = parser.parse_args()
@@ -295,7 +296,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     signal.signal(signal.SIGINT, cleanExit)
     mesh = None
-    mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="mesthastic-map-backend", clean_session=True, userdata=None)
+    mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cliargs.mqtt_clientid, clean_session=True, userdata=None)
 
     if cliargs.ble:
         # we're using a BLE connection
