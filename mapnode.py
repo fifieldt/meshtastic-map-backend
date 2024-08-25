@@ -19,6 +19,7 @@ class MapNode:
         self.positionprecision = 0
         self.positions = {}
         self.lastupdated = datetime.now().timestamp()
+        self.lastmessage = ''
 
     def __str__(self):
         return ("[%s] %s @ %f, %f %dm 🔋%d%%\nNeighbours: %s\nPositions: %s" % (self.name, self.longname,
@@ -129,6 +130,13 @@ class MapNode:
         if longname is not None:
             self.longname = longname
         self.lastupdated = datetime.now().timestamp()
+    
+    def getLastmessage(self , message=None):
+        return self.lastmessage
+
+    def setLastmessage(self , message=None):
+        self.lastmessage = message
+
 
     """
     Uses the Haversine formula (accuracy +/- 0.5%) to find the distance in km from our node
@@ -172,7 +180,8 @@ class MapNode:
             "batterylevel": """ + '"' + str(self.batterylevel) + """",
             "neighbours": """ + '"' + self.getNeighbours(nodes).replace("\n", "<br />") + """",
             "lastupdated": """ + '"' + self.getLastUpdated() + """",
-            "positionprecision": """ + '"' + str(self.positionprecision) + """"
+            "positionprecision": """ + '"' + str(self.positionprecision) + """",
+            "lastmessage": """ + '"' + str(self.lastmessage) + """"
           },
           "geometry": {
             "type": "Point",

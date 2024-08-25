@@ -192,6 +192,9 @@ def processNeighbourInfo(pktfrom, data):
 
 
 def processTextMessage(pktfrom, pktto, data):
+    if pktfrom not in nodes.keys():
+        nodes[pktfrom] = MapNode(pktfrom)
+    nodes[pktfrom].setLastmessage(data)
     logging.info("[TEXT] %d→%d %s" % (pktfrom, pktto, data))
 
 def onReceiveMQTT(client, data, msg):
