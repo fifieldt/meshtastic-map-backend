@@ -107,9 +107,9 @@ def processPosition(pktfrom, data, max_precision=16):
         return
 
     if cliargs.max_distance != 0:
-        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(cliargs.latitude)
-        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(cliargs.longitude)
-        a = sin(latdelta / 2)**2 + cos(radians(cliargs.latitude)) * cos(radians(geoItoFloat(data["latitudeI"]))) * sin(londelta / 2)**2
+        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(float(cliargs.latitude))
+        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(float(cliargs.longitude))
+        a = sin(latdelta / 2)**2 + cos(radians(float(cliargs.latitude))) * cos(radians(geoItoFloat(data["latitudeI"]))) * sin(londelta / 2)**2
         if 6373.0 * (2 * atan2(sqrt(a), sqrt(1 - a))) > cliargs.max_distance:
             logging.debug("Coordinate Check Failed latcheck=%f, longcheck=%f, %s" %(latdelta, londelta, data))
             return
