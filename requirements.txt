@@ -2,3 +2,5 @@ cryptography
 meshtastic
 schedule
 timeago
+jinja2
+paho-mqtt
