@@ -17,6 +17,7 @@ import schedule
 import signal
 import sys
 import time
+import uuid
 
 from maprequesthandler2 import MapRequestHandler
 from mapnode import MapNode
@@ -44,9 +45,10 @@ parser.add_argument('--mqtt-port', default=1883, help='Port of MQTT Server')
 parser.add_argument('--mqtt-user', default="meshdev", help='MQTT account username')
 parser.add_argument('--mqtt-pass', default="large4cats", help='Password of MQTT account')
 parser.add_argument('--mqtt-topic', default="msh/TW/#", help='Topic to subscribe to MQTT')
-parser.add_argument('--mqtt-clientid', default="mesthastic-map-backend", help='MQTT client ID')
+parser.add_argument('--mqtt-clientid', help='MQTT client ID')
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
 parser.add_argument('--lastmessage', default=False, help='Store and share last messages from nodes')
+parser.add_argument('--data-dir', default='.', help='Location of nodes.db - node database')
 
 cliargs, _ = parser.parse_known_args()
 nodes = {}
@@ -60,7 +62,7 @@ def cleanExit(sig, frame):
     if len(nodes) == 0:
         sys.exit(0)
 
-    with open('nodes.db', 'wb') as file:
+    with open(cliargs.data_dir + '/nodes.db', 'wb') as file:
         pickle.dump(nodes, file)
     sys.exit(0)
 
@@ -309,7 +311,14 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     signal.signal(signal.SIGINT, cleanExit)
     mesh = None
-    mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cliargs.mqtt_clientid, clean_session=True, userdata=None)
+    if cliargs.mqtt_clientid:
+        mqtt_clientid = cliargs.mqtt_clientid
+    else:
+        mqtt_clientid = 'map-backend-' + str(uuid.uuid4())
+    mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=mqtt_clientid, clean_session=True, userdata=None)
+
+    if "RAILWAY_VOLUME_MOUNT_PATH" in os.environ.keys():
+        cliargs.data_dir = os.environ["RAILWAY_VOLUME_MOUNT_PATH"]
 
     if cliargs.ble:
         # we're using a BLE connection
@@ -346,12 +355,12 @@ def main():
             logging.error("Exclusive node list not found. Using all nodes.")
 
     try:
-        with open('nodes.db', 'rb') as file:
+        with open(cliargs.data_dir + '/nodes.db', 'rb') as file:
             nodes = pickle.load(file)
             logging.info("Loaded %d nodes" % len(nodes))
     except FileNotFoundError:
         nodes = {}
-        with open('nodes.db', 'wb') as file:
+        with open(cliargs.data_dir + '/nodes.db', 'wb') as file:
             pickle.dump(nodes, file)
     except pickle.UnpicklingError:
         logging.error("Invalid nodes database")
