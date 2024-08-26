@@ -51,11 +51,7 @@ parser.add_argument('--lastmessage', default=False, help='Store and share last m
 cliargs, _ = parser.parse_known_args()
 nodes = {}
 mynodes = []
-
-if "RAILWAY_PUBLIC_DOMAIN" in os.environ.keys():
-    cliargs.geojson = "https://" + os.environ["RAILWAY_PUBLIC_DOMAIN"]
-mrh = MapRequestHandler(cliargs, nodes, mynodes)
-app = mrh.getApp()
+app = None
 
 def cleanExit(sig, frame):
     global nodes
@@ -368,6 +364,11 @@ def main():
     schedule.every(15).minutes.do(cleanData)
 
     # start geoJSON API
+    if "RAILWAY_PUBLIC_DOMAIN" in os.environ.keys():
+        cliargs.geojson = "https://" + os.environ["RAILWAY_PUBLIC_DOMAIN"]
+    mrh = MapRequestHandler(cliargs, nodes, mynodes)
+    app = mrh.getApp()
+
     if "FLASK_RUN_FROM_CLI" in os.environ.keys():
         del os.environ["FLASK_RUN_FROM_CLI"]
     mrh.run()
