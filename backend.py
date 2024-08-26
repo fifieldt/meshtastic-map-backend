@@ -366,7 +366,8 @@ def main():
     # start geoJSON API
     mrh = MapRequestHandler(cliargs, nodes, mynodes)
     app = mrh.getApp()
-    del os.environ["FLASK_RUN_FROM_CLI"]
+    if "FLASK_RUN_FROM_CLI" in os.environ.keys():
+        del os.environ["FLASK_RUN_FROM_CLI"]
     mrh.run()
 
     while True:
