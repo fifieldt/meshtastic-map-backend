@@ -54,9 +54,18 @@ You can set the center of that map by specifying `--latitude` and `--longitude`,
 zoom level (`--zoom`).
 
 If you want to use an alternative source for the GeoJSON API endpoint, you can specify a URL using `--geoJSON`.
-
+If the app detects it is running as a Railway app, the Railway Public Endpoint will be used instead.
 
 ### Map Reports Only
 By default, when using MQTT, the backend only processes `MAP_REPORT_APP` packets. If you are using a
 private MQTT server for your local community, you can disable this limitation by specifying 
 `--map-reports-only False`.
+
+### Show Last Message
+Setting the `--lastmessage` to True will store and display the last message received by each node.
+This is disabled by default.
+
+## Running with Flask
+Meshtastic Map Backend can be run with flask, using:
+
+`flask --app backend:main run`
