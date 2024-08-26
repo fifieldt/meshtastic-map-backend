@@ -52,6 +52,8 @@ cliargs, _ = parser.parse_known_args()
 nodes = {}
 mynodes = []
 
+if "RAILWAY_PUBLIC_DOMAIN" in os.environ.keys():
+    cliargs.geojson = "https://" + RAILWAY_PUBLIC_DOMAIN
 mrh = MapRequestHandler(cliargs, nodes, mynodes)
 app = mrh.getApp()
 
