@@ -42,7 +42,9 @@ parser.add_argument('--mqtt-port', default=1883, help='Port of MQTT Server')
 parser.add_argument('--mqtt-user', default="meshdev", help='MQTT account username')
 parser.add_argument('--mqtt-pass', default="large4cats", help='Password of MQTT account')
 parser.add_argument('--mqtt-topic', default="msh/TW/#", help='Topic to subscribe to MQTT')
+parser.add_argument('--mqtt-clientid', default="mesthastic-map-backend", help='MQTT client ID')
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
+parser.add_argument('--lastmessage', default=False, help='Store and share last messages from nodes')
 
 cliargs = parser.parse_args()
 nodes = {}
@@ -106,9 +108,9 @@ def processPosition(pktfrom, data, max_precision=16):
         return
 
     if cliargs.max_distance != 0:
-        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(cliargs.latitude)
-        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(cliargs.longitude)
-        a = sin(latdelta / 2)**2 + cos(radians(cliargs.latitude)) * cos(radians(geoItoFloat(data["latitudeI"]))) * sin(londelta / 2)**2
+        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(float(cliargs.latitude))
+        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(float(cliargs.longitude))
+        a = sin(latdelta / 2)**2 + cos(radians(float(cliargs.latitude))) * cos(radians(geoItoFloat(data["latitudeI"]))) * sin(londelta / 2)**2
         if 6373.0 * (2 * atan2(sqrt(a), sqrt(1 - a))) > cliargs.max_distance:
             logging.debug("Coordinate Check Failed latcheck=%f, longcheck=%f, %s" %(latdelta, londelta, data))
             return
@@ -191,6 +193,10 @@ def processNeighbourInfo(pktfrom, data):
 
 
 def processTextMessage(pktfrom, pktto, data):
+    if cliargs.lastmessage:
+        if pktfrom not in nodes.keys():
+            nodes[pktfrom] = MapNode(pktfrom)
+        nodes[pktfrom].setLastmessage(data)
     logging.info("[TEXT] %d→%d %s" % (pktfrom, pktto, data))
 
 def onReceiveMQTT(client, data, msg):
@@ -295,7 +301,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     signal.signal(signal.SIGINT, cleanExit)
     mesh = None
-    mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="mesthastic-map-backend", clean_session=True, userdata=None)
+    mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=cliargs.mqtt_clientid, clean_session=True, userdata=None)
 
     if cliargs.ble:
         # we're using a BLE connection

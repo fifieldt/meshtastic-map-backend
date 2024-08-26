@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 import logging
 from math import sin, cos, sqrt, atan2, radians
 import timeago
@@ -19,6 +18,7 @@ class MapNode:
         self.positionprecision = 0
         self.positions = {}
         self.lastupdated = datetime.now().timestamp()
+        self.lastmessage = None
 
     def __str__(self):
         return ("[%s] %s @ %f, %f %dm 🔋%d%%\nNeighbours: %s\nPositions: %s" % (self.name, self.longname,
@@ -88,34 +88,35 @@ class MapNode:
             return "Poor"
 
     def getLinks(self, nodes):
-        geojson = ""
+        links = []
         if self.latitude == 0 or self.longitude == 0:
-            return geojson
+            return links
 
         for i in self.neighbours.keys():
             try:
                 if nodes[i].getLatitude() == 0 or nodes[i].getLongitude() == 0:
                     continue
-
-                geojson += """
-                {
-                  "type": "Feature",
-                  "properties": {
-                    "name": """ + '"' + str(self.name) + "-" + nodes[i].getName() + """",
-                    "snr": """ + '"' + str(self.neighbours[i][0]) + """",
-                    "snr_qual": """ + '"' + self.getSNRQuality(self.neighbours[i][0]) + """",
-                    "lastupdated": """ + '"' + timeago.format(self.neighbours[i][1], datetime.now(), "en_short") + """"
-                  },
-                  "geometry": {
-                    "type": "LineString",
-                    "coordinates": [[""" + str(self.longitude) + ", " + str(self.latitude) + """],
-                                    [  """ + str(nodes[i].getLongitude()) + ", " + str(nodes[i].getLatitude()) + """]]
-                  }
-                },"""
+                link = {
+                        "type": "Feature",
+                        "properties": {
+                            "name": str(self.name) + "-" + nodes[i].getName(),
+                            "snr": str(self.neighbours[i][0]),
+                            "snr_qual": self.getSNRQuality(self.neighbours[i][0]),
+                            "lastupdated": timeago.format(self.neighbours[i][1], datetime.now(), "en_short")
+                        },
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": [
+                                [self.longitude, self.latitude],
+                                [nodes[i].getLongitude(), nodes[i].getLatitude()]
+                            ]
+                        }
+                    }
+                links.append(link)
             except KeyError as e:
                 logging.error(repr(e))
 
-        return geojson[:-1]
+        return links
 
 
     def setMetrics(self, batterylevel=0):
@@ -129,6 +130,13 @@ class MapNode:
         if longname is not None:
             self.longname = longname
         self.lastupdated = datetime.now().timestamp()
+    
+    def getLastmessage(self , message=None):
+        return self.lastmessage
+
+    def setLastmessage(self , message=None):
+        self.lastmessage = message
+
 
     """
     Uses the Haversine formula (accuracy +/- 0.5%) to find the distance in km from our node
@@ -162,36 +170,42 @@ class MapNode:
     def toFeature(self, nodes):
         if self.positionprecision == 0:
             return "{}"
-        return """
-        {
-          "type": "Feature",
-          "properties": {
-            "name": """ + '"' + str(self.longname) + """",
-            "shortname": """ + '"' + str(self.name) + """",
-            "objectid": """ + '"' + str(self.nodeid) + """",
-            "batterylevel": """ + '"' + str(self.batterylevel) + """",
-            "neighbours": """ + '"' + self.getNeighbours(nodes).replace("\n", "<br />") + """",
-            "lastupdated": """ + '"' + self.getLastUpdated() + """",
-            "positionprecision": """ + '"' + str(self.positionprecision) + """"
-          },
-          "geometry": {
-            "type": "Point",
-            "coordinates": [""" + str(self.longitude) + ', ' + str(self.latitude) + """]
-          }
-        }"""
+        
+        data = {
+                    "type": "Feature",
+                    "properties": {
+                        "name": str(self.longname),
+                        "shortname": str(self.name),
+                        "objectid": str(self.nodeid),
+                        "batterylevel": str(self.batterylevel),
+                        "neighbours": self.getNeighbours(nodes).replace("\n", "<br />"),
+                        "lastupdated": self.getLastUpdated(),
+                        "positionprecision": str(self.positionprecision),
+                    },
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [self.longitude, self.latitude]
+                    }
+                }
+        
+        if self.lastmessage is not None:
+            data["properties"]["lastmessage"] = str(self.lastmessage)
+
+        return data
+
 
     def toMultiPoint(self):
-        return """
-        {
-          "type": "Feature",
-          "properties": {
-            "name": """ + '"' + str(self.longname) + """",
-            "shortname": """ + '"' + str(self.name) + """",
-            "objectid": """ + '"' + str(self.nodeid) + """",
-            "times": """ + json.dumps([datetime.fromtimestamp(key).strftime("%Y-%m-%d %H:%M:%S") for key in self.positions.keys()]) + """
-          },
-          "geometry": {
-            "type": "LineString",
-            "coordinates": """ + str([[item[1][1],item[1][0]] for item in self.positions.items()]) + """
-          }
-        }"""
+        data = {
+            "type": "Feature",
+            "properties": {
+                "name": str(self.longname),
+                "shortname": str(self.name),
+                "objectid": str(self.nodeid),
+                "times": [datetime.fromtimestamp(key).strftime("%Y-%m-%d %H:%M:%S") for key in self.positions.keys()]
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[item[1][1], item[1][0]] for item in self.positions.items()]
+            }
+        }
+        return data

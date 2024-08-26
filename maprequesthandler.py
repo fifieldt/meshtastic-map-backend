@@ -2,6 +2,7 @@ from functools import partial
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from jinja2 import Template
 import logging
+import json
 
 class MapHTTPRequestHandler(BaseHTTPRequestHandler):
 
@@ -57,7 +58,7 @@ class MapHTTPRequestHandler(BaseHTTPRequestHandler):
         pass
 
     def nodesToJSON(self, multipoint=False):
-        json = '{\n"type": "FeatureCollection",\n "features": ['
+        features = []
 
         for node in self.nodes.keys():
             if self.nodes[node].getLatitude() == 0:
@@ -66,41 +67,33 @@ class MapHTTPRequestHandler(BaseHTTPRequestHandler):
                 continue
             if multipoint:
                 if len(self.nodes[node].positions) > 1:
-                    json += self.nodes[node].toMultiPoint() + ','
+                    features.append(self.nodes[node].toMultiPoint())
             else:
-                json += self.nodes[node].toFeature(self.nodes) + ','
+                features.append(self.nodes[node].toFeature(self.nodes))
 
-        #remove last comma.
-        json = json[:-1]
-        json +="""
-          ]
-        }"""
-        return json
+        features_json = {"type":"featureCollection", "features": features}
+        
+        return json.dumps(features_json)
 
 
     def neighboursToJSON(self):
-        json = '{\n"type": "FeatureCollection",\n "features": ['
-
+        features = []
         neighbours_found = False
+
         for node in self.nodes.keys():
             if self.cliargs.exclusive and node not in self.mynodes:
                 continue
             links  = self.nodes[node].getLinks(self.nodes)
-            if links != "":
-                json += self.nodes[node].getLinks(self.nodes) + ","
+            if len(links) > 0:
+                features.append(links)
                 neighbours_found = True
 
         if neighbours_found is False:
-            json +="{}"
-        else:
-            #remove last comma.
-            json = json[:-1]
+            features.append({})
 
-        json +="""
-          ]
-        }"""
+        features_json = {"type":"featureCollection", "features": features}
 
-        return json
+        return json.dumps(features_json)
 
 
 
