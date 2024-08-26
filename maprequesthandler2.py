@@ -8,22 +8,22 @@ log.setLevel(logging.ERROR)
 
 class MapRequestHandler:
 
-    def __init__(self, cliargs, nodes, mynodes, *args, **kwargs):
+    def __init__(self, nodes, mynodes, lat, lon, zoom, geojson, exclusive, *args, **kwargs):
         self.app = Flask(__name__)
-        self.cliargs = cliargs
         self.nodes = nodes
         self.mappage = ""
         self.mynodes = mynodes
+        self.exclusive = exclusive
         self.app.add_url_rule("/", 'index', self.debug_map)
         self.app.add_url_rule("/map", 'map', self.debug_map)
         self.app.add_url_rule("/multipoint", 'multipoint', self.multipoint_json)
         self.app.add_url_rule("/links", 'links', self.links_json)
         self.app.add_url_rule("/nodes", 'nodes', self.nodes_json)
         with open('map.html', 'r') as file:
-           self.mappage = Template(file.read()).render(latitude=cliargs.latitude,
-                                                       longitude=cliargs.longitude,
-                                                       zoom=cliargs.zoom,
-                                                       geojson=cliargs.geojson)
+           self.mappage = Template(file.read()).render(latitude=lat,
+                                                       longitude=lon,
+                                                       zoom=zoom,
+                                                       geojson=geojson)
 
     def getApp(self):
         return self.app
@@ -59,7 +59,7 @@ class MapRequestHandler:
         for node in self.nodes.keys():
             if self.nodes[node].getLatitude() == 0:
                 continue
-            if self.cliargs.exclusive and node not in self.mynodes:
+            if self.exclusive and node not in self.mynodes:
                 continue
             if multipoint:
                 if len(self.nodes[node].positions) > 1:
@@ -75,7 +75,7 @@ class MapRequestHandler:
         features = []
 
         for node in self.nodes.keys():
-            if self.cliargs.exclusive and node not in self.mynodes:
+            if self.exclusive and node not in self.mynodes:
                 continue
             links  = self.nodes[node].getLinks(self.nodes)
             if len(links) > 0:

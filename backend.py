@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import base64
+import configparser
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime
@@ -51,6 +52,8 @@ parser.add_argument('--lastmessage', default=False, help='Store and share last m
 parser.add_argument('--data-dir', default='.', help='Location of nodes.db - node database')
 
 cliargs, _ = parser.parse_known_args()
+iniconfig = configparser.ConfigParser()
+iniconfig.read('config.ini')
 nodes = {}
 mynodes = []
 app = None
@@ -62,7 +65,7 @@ def cleanExit(sig, frame):
     if len(nodes) == 0:
         sys.exit(0)
 
-    with open(cliargs.data_dir + '/nodes.db', 'wb') as file:
+    with open(config('data_dir') + '/nodes.db', 'wb') as file:
         pickle.dump(nodes, file)
     sys.exit(0)
 
@@ -73,6 +76,18 @@ def cleanData(threshold=172800):
             del nodes[node]
         else:
             nodes[node].clean()
+
+def config(varname, inisection="DEFAULT"):
+    if varname[0:4] == "mqtt":
+        inisection="MQTT"
+    try:
+        r = getattr(cliargs, varname)
+        return r
+    except AttributeError:
+        if varname in iniconfig[inisection].keys():
+            return iniconfig[inisection][varname]
+
+    return None
 
 def decryptMessage(mp, key="1PG7OiApB1nwvP+rz05pAQ=="):
     """Decrypt a meshtastic message."""
@@ -111,11 +126,11 @@ def processPosition(pktfrom, data, max_precision=16):
         logging.warning("Position with no coordinates  %s" % data)
         return
 
-    if cliargs.max_distance != 0:
-        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(float(cliargs.latitude))
-        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(float(cliargs.longitude))
-        a = sin(latdelta / 2)**2 + cos(radians(float(cliargs.latitude))) * cos(radians(geoItoFloat(data["latitudeI"]))) * sin(londelta / 2)**2
-        if 6373.0 * (2 * atan2(sqrt(a), sqrt(1 - a))) > cliargs.max_distance:
+    if config('max_distance') != 0:
+        latdelta = radians(geoItoFloat(data["latitudeI"])) - radians(float(config('latitude')))
+        londelta = radians(geoItoFloat(data["longitudeI"])) - radians(float(config('longitude')))
+        a = sin(latdelta / 2)**2 + cos(radians(float(config('latitude')))) * cos(radians(geoItoFloat(data["latitudeI"]))) * sin(londelta / 2)**2
+        if 6373.0 * (2 * atan2(sqrt(a), sqrt(1 - a))) > config('max_distance'):
             logging.debug("Coordinate Check Failed latcheck=%f, longcheck=%f, %s" %(latdelta, londelta, data))
             return
 
@@ -197,7 +212,7 @@ def processNeighbourInfo(pktfrom, data):
 
 
 def processTextMessage(pktfrom, pktto, data):
-    if cliargs.lastmessage:
+    if config('lastmessage'):
         if pktfrom not in nodes.keys():
             nodes[pktfrom] = MapNode(pktfrom)
         nodes[pktfrom].setLastmessage(data)
@@ -261,8 +276,11 @@ def onReceive(packet, interface):  # pylint: disable=unused-argument
     """called when a packet arrives"""
 
     if "decoded" not in packet.keys() or "portnum" not in packet["decoded"].keys():
-            print(f"???Received: {packet}")
+        if "encrypted" in packet.keys():
+            # we don't handle encrypted packets here.
             return
+        print(f"???Received: {packet}")
+        return
 
     portnum = packet["decoded"]["portnum"]
 
@@ -271,7 +289,7 @@ def onReceive(packet, interface):  # pylint: disable=unused-argument
         processNodeInfo(packet["from"], packet["decoded"]["mapreport"])
         processPosition(packet["from"], packet["decoded"]["mapreport"])
 
-    elif cliargs.map_reports_only is True:
+    elif config('map_reports_only') is True:
         # we're looking at the entire world, rather than a private or
         # regional community mesh. Let's not get all of the other data.
         return
@@ -311,8 +329,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     signal.signal(signal.SIGINT, cleanExit)
     mesh = None
-    if cliargs.mqtt_clientid:
-        mqtt_clientid = cliargs.mqtt_clientid
+    if config('mqtt_clientid'):
+        mqtt_clientid = config('mqtt_clientid')
     else:
         mqtt_clientid = 'map-backend-' + str(uuid.uuid4())
     mqttclient = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=mqtt_clientid, clean_session=True, userdata=None)
@@ -320,15 +338,15 @@ def main():
     if "RAILWAY_VOLUME_MOUNT_PATH" in os.environ.keys():
         cliargs.data_dir = os.environ["RAILWAY_VOLUME_MOUNT_PATH"]
 
-    if cliargs.ble:
+    if config('ble'):
         # we're using a BLE connection
         mesh = meshtastic.ble_interface.BLEInterface(address="any")
-    elif cliargs.port is not None and cliargs.port[0] == '/':
+    elif config('port') is not None and config('port')[0] == '/':
         # we're using a serial connection
-        mesh = meshtastic.serial_interface.SerialInterface(devPath=cliargs.port)
-    elif cliargs.port is not None and cliargs.port[0].isnumeric():
+        mesh = meshtastic.serial_interface.SerialInterface(devPath=config('port'))
+    elif config('port') is not None and config('port')[0].isnumeric():
         # we have an IP address, use TCP.
-        mesh = meshtastic.tcp_interface.TCPInterface(hostname=cliargs.port)
+        mesh = meshtastic.tcp_interface.TCPInterface(hostname=config('port'))
 
     if mesh is not None:
         me = mesh.nodesByNum[mesh.myInfo.my_node_num]
@@ -338,16 +356,16 @@ def main():
         pub.subscribe(onReceive, "meshtastic.receive")
     else:
         logging.info("No mesh connection defined with --port or --ble. Using MQTT.")
-        mqttclient.username_pw_set(cliargs.mqtt_user, cliargs.mqtt_pass)
-        mqttclient.connect(cliargs.mqtt_host, cliargs.mqtt_port)
-        mqttclient.subscribe(cliargs.mqtt_topic, 0)
+        mqttclient.username_pw_set(config('mqtt_user'), config('mqtt_pass'))
+        mqttclient.connect(config('mqtt_host'), config('mqtt_port'))
+        mqttclient.subscribe(config('mqtt_topic'), 0)
         mqttclient.on_message = onReceiveMQTT
         mqttclient.loop_start()
 
 
-    if cliargs.exclusive:
+    if config('exclusive'):
         try:
-            with open(cliargs.exclusive, 'r') as exfile:
+            with open(config('exclusive'), 'r') as exfile:
                 for line in exfile:
                     mynodes.append(int(line.split()[0]))
 
@@ -355,12 +373,12 @@ def main():
             logging.error("Exclusive node list not found. Using all nodes.")
 
     try:
-        with open(cliargs.data_dir + '/nodes.db', 'rb') as file:
+        with open(config('data_dir') + '/nodes.db', 'rb') as file:
             nodes = pickle.load(file)
             logging.info("Loaded %d nodes" % len(nodes))
     except FileNotFoundError:
         nodes = {}
-        with open(cliargs.data_dir + '/nodes.db', 'wb') as file:
+        with open(config('data_dir') + '/nodes.db', 'wb') as file:
             pickle.dump(nodes, file)
     except pickle.UnpicklingError:
         logging.error("Invalid nodes database")
@@ -375,7 +393,8 @@ def main():
     # start geoJSON API
     if "RAILWAY_PUBLIC_DOMAIN" in os.environ.keys():
         cliargs.geojson = "https://" + os.environ["RAILWAY_PUBLIC_DOMAIN"]
-    mrh = MapRequestHandler(cliargs, nodes, mynodes)
+    mrh = MapRequestHandler(nodes, mynodes, config('latitude'), config('longitude'),
+                            config('zoom'), config('geojson'), config('exclusive'))
     app = mrh.getApp()
 
     if "FLASK_RUN_FROM_CLI" in os.environ.keys():
