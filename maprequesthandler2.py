@@ -14,6 +14,11 @@ class MapRequestHandler:
         self.nodes = nodes
         self.mappage = ""
         self.mynodes = mynodes
+        self.app.add_url_rule("/", 'index', self.debug_map)
+        self.app.add_url_rule("/map", 'map', self.debug_map)
+        self.app.add_url_rule("/multipoint", 'multipoint', self.multipoint_json)
+        self.app.add_url_rule("/links", 'links', self.links_json)
+        self.app.add_url_rule("/nodes", 'nodes', self.nodes_json)
         with open('map.html', 'r') as file:
            self.mappage = Template(file.read()).render(latitude=cliargs.latitude,
                                                        longitude=cliargs.longitude,
@@ -82,9 +87,4 @@ class MapRequestHandler:
 
 
     def run(self, host="0.0.0.0", port=8100):
-        self.app.add_url_rule("/", 'index', self.debug_map)
-        self.app.add_url_rule("/map", 'map', self.debug_map)
-        self.app.add_url_rule("/multipoint", 'multipoint', self.multipoint_json)
-        self.app.add_url_rule("/links", 'links', self.links_json)
-        self.app.add_url_rule("/nodes", 'nodes', self.nodes_json)
         self.app.run(host=host, port=port)

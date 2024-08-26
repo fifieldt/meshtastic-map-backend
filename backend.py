@@ -51,7 +51,9 @@ parser.add_argument('--lastmessage', default=False, help='Store and share last m
 cliargs, _ = parser.parse_known_args()
 nodes = {}
 mynodes = []
-app = None
+
+mrh = MapRequestHandler(cliargs, nodes, mynodes)
+app = mrh.getApp()
 
 def cleanExit(sig, frame):
     global nodes
@@ -364,8 +366,6 @@ def main():
     schedule.every(15).minutes.do(cleanData)
 
     # start geoJSON API
-    mrh = MapRequestHandler(cliargs, nodes, mynodes)
-    app = mrh.getApp()
     if "FLASK_RUN_FROM_CLI" in os.environ.keys():
         del os.environ["FLASK_RUN_FROM_CLI"]
     mrh.run()
