@@ -1,6 +1,7 @@
 cryptography
+flask
+jinja2
 meshtastic
+paho-mqtt
 schedule
 timeago
-jinja2
-paho-mqtt

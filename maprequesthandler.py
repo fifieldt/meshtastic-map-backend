@@ -71,8 +71,8 @@ class MapHTTPRequestHandler(BaseHTTPRequestHandler):
             else:
                 features.append(self.nodes[node].toFeature(self.nodes))
 
-        features_json = {"type":"featureCollection", "features": features}
-        
+        features_json = {"type":"FeatureCollection", "features": features}
+
         return json.dumps(features_json)
 
 
@@ -91,7 +91,7 @@ class MapHTTPRequestHandler(BaseHTTPRequestHandler):
         if neighbours_found is False:
             features.append({})
 
-        features_json = {"type":"featureCollection", "features": features}
+        features_json = {"type":"FeatureCollection", "features": features}
 
         return json.dumps(features_json)
 

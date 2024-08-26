@@ -5,9 +5,11 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime
 from decimal import Decimal
+from flask import Flask
 from google.protobuf.json_format import MessageToDict
 import logging
 from math import sin, cos, sqrt, atan2, radians
+import os
 import paho.mqtt.client as mqtt
 import pickle
 from pubsub import pub
@@ -16,7 +18,7 @@ import signal
 import sys
 import time
 
-import maprequesthandler
+from maprequesthandler2 import MapRequestHandler
 from mapnode import MapNode
 
 import meshtastic
@@ -46,10 +48,10 @@ parser.add_argument('--mqtt-clientid', default="mesthastic-map-backend", help='M
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
 parser.add_argument('--lastmessage', default=False, help='Store and share last messages from nodes')
 
-cliargs = parser.parse_args()
+cliargs, _ = parser.parse_known_args()
 nodes = {}
 mynodes = []
-
+app = None
 
 def cleanExit(sig, frame):
     global nodes
@@ -267,16 +269,22 @@ def onReceive(packet, interface):  # pylint: disable=unused-argument
         processNodeInfo(packet["from"], packet["decoded"]["mapreport"])
         processPosition(packet["from"], packet["decoded"]["mapreport"])
 
-    elif cliargs.map_reports_only == "arfdgdg":
+    elif cliargs.map_reports_only is True:
         # we're looking at the entire world, rather than a private or
         # regional community mesh. Let's not get all of the other data.
         return
 
     elif portnum == "POSITION_APP":
-        processPosition(packet["from"], packet["decoded"]["position"])
+        try:
+            processPosition(packet["from"], packet["decoded"]["position"])
+        except KeyError as e:
+            logging.debug(f"*** Failed to process MQTT Packet {str(e)}")
 
     elif portnum == "TELEMETRY_APP":
-        processTelemetry(packet["from"], packet["decoded"]["telemetry"])
+        try:
+            processTelemetry(packet["from"], packet["decoded"]["telemetry"])
+        except KeyError as e:
+            logging.debug(f"*** Failed to process MQTT Packet {str(e)}")
 
     elif portnum == "NODEINFO_APP":
         processTelemetry(packet["from"], packet["decoded"]["user"])
@@ -356,7 +364,10 @@ def main():
     schedule.every(15).minutes.do(cleanData)
 
     # start geoJSON API
-    maprequesthandler.run_server(cliargs, nodes, mynodes)
+    mrh = MapRequestHandler(cliargs, nodes, mynodes)
+    app = mrh.getApp()
+    del os.environ["FLASK_RUN_FROM_CLI"]
+    mrh.run()
 
     while True:
         schedule.run_pending()
