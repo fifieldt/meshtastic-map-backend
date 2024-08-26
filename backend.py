@@ -44,6 +44,7 @@ parser.add_argument('--mqtt-pass', default="large4cats", help='Password of MQTT 
 parser.add_argument('--mqtt-topic', default="msh/TW/#", help='Topic to subscribe to MQTT')
 parser.add_argument('--mqtt-clientid', default="mesthastic-map-backend", help='MQTT client ID')
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
+parser.add_argument('--lastmessage', default=False, help='Store and share last messages from nodes')
 
 cliargs = parser.parse_args()
 nodes = {}
@@ -192,9 +193,10 @@ def processNeighbourInfo(pktfrom, data):
 
 
 def processTextMessage(pktfrom, pktto, data):
-    if pktfrom not in nodes.keys():
-        nodes[pktfrom] = MapNode(pktfrom)
-    nodes[pktfrom].setLastmessage(data)
+    if cliargs.lastmessage:
+        if pktfrom not in nodes.keys():
+            nodes[pktfrom] = MapNode(pktfrom)
+        nodes[pktfrom].setLastmessage(data)
     logging.info("[TEXT] %d→%d %s" % (pktfrom, pktto, data))
 
 def onReceiveMQTT(client, data, msg):
