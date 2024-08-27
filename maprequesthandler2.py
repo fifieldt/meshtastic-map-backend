@@ -78,8 +78,8 @@ class MapRequestHandler:
             if self.exclusive and node not in self.mynodes:
                 continue
             links  = self.nodes[node].getLinks(self.nodes)
-            if len(links) > 0:
-                features.append(links)
+            for link in links:
+                features.append(link)
 
         features_json = {"type":"FeatureCollection", "features": features}
 
