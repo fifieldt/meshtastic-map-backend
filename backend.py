@@ -284,44 +284,41 @@ def onReceive(packet, interface):  # pylint: disable=unused-argument
 
     portnum = packet["decoded"]["portnum"]
 
-    if portnum == "MAP_REPORT_APP":
-        logging.info("MAPREPORT:")
-        processNodeInfo(packet["from"], packet["decoded"]["mapreport"])
-        processPosition(packet["from"], packet["decoded"]["mapreport"])
+    try:
+        if portnum == "MAP_REPORT_APP":
+            logging.info("MAPREPORT:")
+            processNodeInfo(packet["from"], packet["decoded"]["mapreport"])
+            processPosition(packet["from"], packet["decoded"]["mapreport"])
 
-    elif config('map_reports_only') is True:
-        # we're looking at the entire world, rather than a private or
-        # regional community mesh. Let's not get all of the other data.
-        return
+        elif config('map_reports_only') is True:
+            # we're looking at the entire world, rather than a private or
+            # regional community mesh. Let's not get all of the other data.
+            return
 
-    elif portnum == "POSITION_APP":
-        try:
+        elif portnum == "POSITION_APP":
             processPosition(packet["from"], packet["decoded"]["position"])
-        except KeyError as e:
-            logging.debug(f"*** Failed to process MQTT Packet {str(e)}")
 
-    elif portnum == "TELEMETRY_APP":
-        try:
+        elif portnum == "TELEMETRY_APP":
             processTelemetry(packet["from"], packet["decoded"]["telemetry"])
-        except KeyError as e:
-            logging.debug(f"*** Failed to process MQTT Packet {str(e)}")
 
-    elif portnum == "NODEINFO_APP":
-        processTelemetry(packet["from"], packet["decoded"]["user"])
+        elif portnum == "NODEINFO_APP":
+            processTelemetry(packet["from"], packet["decoded"]["user"])
 
-    elif portnum == "NEIGHBORINFO_APP":
-        processNeighbourInfo(packet["from"], packet["decoded"]["neighborinfo"])
+        elif portnum == "NEIGHBORINFO_APP":
+            processNeighbourInfo(packet["from"], packet["decoded"]["neighborinfo"])
 
-    elif portnum == "TEXT_MESSAGE_APP":
-        processTextMessage(packet["from"], packet["to"], packet["decoded"]["text"])
+        elif portnum == "TEXT_MESSAGE_APP":
+            processTextMessage(packet["from"], packet["to"], packet["decoded"]["text"])
 
-    elif portnum == "ROUTING_APP":
-        logging.info("[ROUTING ]")
-        logging.debug(f"Received: {packet}")
+        elif portnum == "ROUTING_APP":
+            logging.info("[ROUTING ]")
+            logging.debug(f"Received: {packet}")
 
-    else:
-        logging.info(packet["decoded"]["portnum"])
-        logging.info(f"Received unknown: {packet}")
+        else:
+            logging.info(packet["decoded"]["portnum"])
+            logging.info(f"Received unknown: {packet}")
+    except KeyError as e:
+        logging.debug(f"*** Failed to process MQTT Packet {str(e)}")
 
 
 def main():
