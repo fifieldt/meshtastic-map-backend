@@ -35,8 +35,8 @@ parser = argparse.ArgumentParser(
                     epilog='https://github.com/fifieldt/meshtastic-map-backend')
 parser.add_argument('-p', '--port', help='Serial device on which to connect to meshtastic eg /dev/ttyACM0')
 parser.add_argument('-b', '--ble', action='store_true', help='Use BLE to connect to a meshtastic device')
-parser.add_argument('--latitude', default=25.0122, help='Latitude for centre of map')
-parser.add_argument('--longitude', default=121.468, help='Longitude for centre of map')
+parser.add_argument('--latitude', default=25.0122, type=float, help='Latitude for centre of map')
+parser.add_argument('--longitude', default=121.468, type=float, help='Longitude for centre of map')
 parser.add_argument('--zoom', default=13, help='Initial map zoom setting')
 parser.add_argument('--max-distance', default=100, help='Ignore nodes outside this distance (km), 0 for infinite')
 parser.add_argument('--geojson', default="http://127.0.0.1:8100", help='URL to geojson source')
@@ -178,14 +178,19 @@ def processTelemetry(pktfrom, data):
     elif "deviceMetrics" in data.keys() and len(data["deviceMetrics"].keys()) <= 3:
         # standard channel utilization telemetry - ignore.
         pass
-    elif "longName" in data.keys() and "shortName" in data.keys():
+
+    if "longName" in data.keys() and "shortName" in data.keys():
         processNodeInfo(pktfrom, data)
-    elif "environmentMetrics" in data.keys():
+
+    if "localStats" in data.keys():
+        logging.info("[TELEMETRY] %s Online: %d, chUtil: %f%%, airUtil: %f%%" % (nodes[pktfrom].getName(),
+                                                                                 data["localStats"]["numOnlineNodes"],
+                                                                                 data["localStats"]["channelUtilization"],
+                                                                                 data["localStats"]["airUtilTx"]))
+
+    if "environmentMetrics" in data.keys():
        # we skip environmental metrics (temperature, relative_humidity, barometric_pressure)
        pass
-    else:
-        logging.warning("???[TELEMETRY] %s %s" % (pktfrom, data))
-
 
 def processNodeInfo(pktfrom, data):
     if pktfrom not in nodes.keys():
@@ -217,6 +222,28 @@ def processTextMessage(pktfrom, pktto, data):
             nodes[pktfrom] = MapNode(pktfrom)
         nodes[pktfrom].setLastmessage(data)
     logging.info("[TEXT] %d→%d %s" % (pktfrom, pktto, data))
+
+"""
+Example packet:
+{'from': 1129883100, 'to': 1314474064, 
+'decoded': {'portnum': 'TRACEROUTE_APP', 
+, 'bitfield': 3' 'traceroute': {'route': [3390434951, 1977641608], 'snrTowards': [-53, -47, -34],
+"""
+def processTraceRoute(pktfrom, pktto, data):
+    if "route" in data.keys():
+        route = [pktfrom].extend(data["route"]).append(pktto)
+    else:
+        route = [pktfrom, pktto]
+
+    for node in route:
+        if node not in nodes.keys():
+            nodes[node] = MapNode(node)
+
+    for index, node in enumerate(route[:-1]):
+        nodes[node].addNeighbour(route[index + 1], data['snrTowards'][index])
+        logging.info("[NEIGHBOUR ] %s -> %s" % (nodes[node].getName(),
+                                                nodes[route[index + 1]].getName()))
+
 
 def onReceiveMQTT(client, data, msg):
     se = mqtt_pb2.ServiceEnvelope()
@@ -279,7 +306,7 @@ def onReceive(packet, interface):  # pylint: disable=unused-argument
         if "encrypted" in packet.keys():
             # we don't handle encrypted packets here.
             return
-        print(f"???Received: {packet}")
+        logging.warning(f"???Received: {packet}")
         return
 
     portnum = packet["decoded"]["portnum"]
@@ -312,6 +339,14 @@ def onReceive(packet, interface):  # pylint: disable=unused-argument
 
         elif portnum == "ROUTING_APP":
             logging.info("[ROUTING ]")
+            logging.debug(f"Received: {packet}")
+
+        elif portnum == "TRACEROUTE_APP":
+            processTraceRoute(packet["from"], packet["to"], packet["decoded"]["traceroute"])
+            logging.debug(f"Received: {packet}")
+
+        elif portnum == "STORE_FORWARD_APP":
+            logging.info("[STORE_FORWARD ]")
             logging.debug(f"Received: {packet}")
 
         else:
@@ -384,6 +419,8 @@ def main():
         logging.error("Invalid nodes database")
         nodes = {}
 
+    if me is not None:
+        nodes[mesh.myInfo.my_node_num].setName(me["user"]["shortName"], me["user"]["longName"])
     cleanData()
     schedule.every(15).minutes.do(cleanData)
 
