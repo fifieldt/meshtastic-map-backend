@@ -420,6 +420,8 @@ def main():
         nodes = {}
 
     if me is not None:
+        if mesh.myInfo.my_node_num not in nodes.keys():
+            nodes[mesh.myInfo.my_node_num] = MapNode(mesh.myInfo.my_node_num)
         nodes[mesh.myInfo.my_node_num].setName(me["user"]["shortName"], me["user"]["longName"])
     cleanData()
     schedule.every(15).minutes.do(cleanData)
