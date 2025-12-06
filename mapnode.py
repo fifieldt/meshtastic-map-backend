@@ -53,7 +53,9 @@ class MapNode:
     def getLongitude(self):
         return self.longitude
 
-    def getName(self):
+    def getName(self, use_longname=False):
+        if use_longname and self.longname != "UNKNOWN":
+            return self.longname
         return self.name
 
     def getNeighbours(self, nodes, pretty=True):
