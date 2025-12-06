@@ -50,6 +50,9 @@ parser.add_argument('--mqtt-clientid', help='MQTT client ID')
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
 parser.add_argument('--lastmessage', default=False, help='Store and share last messages from nodes')
 parser.add_argument('--data-dir', default='.', help='Location of nodes.db - node database')
+parser.add_argument('--followme-enable', action='store_true', help='Enable sending positions to FollowMe')
+parser.add_argument('--followme-host', default="165.227.244.196", help='FollowMe TCP host')
+parser.add_argument('--followme-port', type=int, default=5001, help='FollowMe TCP port')
 parser.add_argument('--use-gpx', default=False, help='Display GPX.gpx on the map')
 
 cliargs, _ = parser.parse_known_args()
@@ -58,6 +61,8 @@ iniconfig.read('config.ini')
 nodes = {}
 mynodes = []
 app = None
+followme_client = None
+
 
 def cleanExit(sig, frame):
     global nodes
@@ -154,18 +159,24 @@ def processPosition(pktfrom, data, max_precision=16):
                                                          data["altitude"],
                                                          data["satsInView"]))
         nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), precision, data["altitude"])
+        if config('followme_enable'):
+            followme_client.send(name=nodes[pktfrom].getName(use_longname=True), alt=float(data["altitude"]), lat=geoItoFloat(data["latitudeI"]), lon=geoItoFloat(data["longitudeI"]))
     elif "altitude" in data.keys():
         logging.info("[POSITION ] %s @ %d, %d %dm" %(nodes[pktfrom].getName(),
                                                     data["latitudeI"],
                                                     data["longitudeI"],
                                                     data["altitude"]))
         nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), precision, data["altitude"])
+        if config('followme_enable'):
+            followme_client.send(name=nodes[pktfrom].getName(use_longname=True), alt=float(data["altitude"]), lat=geoItoFloat(data["latitudeI"]), lon=geoItoFloat(data["longitudeI"]))
     else:
         logging.info("[POSITION ] %s @ %d, %d" %(nodes[pktfrom].getName(),
                                                 data["latitudeI"],
                                                 data["longitudeI"]))
 
         nodes[pktfrom].setPosition(geoItoFloat(data["latitudeI"]), geoItoFloat(data["longitudeI"]), precision)
+        if config('followme_enable'):
+            followme_client.send(name=nodes[pktfrom].getName(use_longname=True), lat=geoItoFloat(data["latitudeI"]), lon=geoItoFloat(data["longitudeI"]))
 
 
 def processTelemetry(pktfrom, data):
@@ -396,6 +407,14 @@ def main():
         mqttclient.on_message = onReceiveMQTT
         mqttclient.loop_start()
 
+    if config('followme_enable') and config('followme_host'):
+        try:
+            from followme import FollowMeClient
+            global followme_client
+            followme_client = FollowMeClient(config('followme_host'), int(config('followme_port')))
+        except Exception as e:
+            logging.error(f"Failed to init FollowMe client: {e}")
+            followme_client = None
 
     if config('exclusive'):
         try:
