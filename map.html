@@ -3,7 +3,6 @@
 <head>
     
     <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-    
         <script>
             L_NO_TOUCH = false;
             L_DISABLE_3D = false;
@@ -39,7 +38,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-pulse-icon@0.1.0/src/L.Icon.Pulse.min.css" />
-    
+{% if use_gpx == "True" %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/2.1.2/gpx.min.js"></script>
+{% endif %}
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
@@ -94,8 +95,18 @@
         
     
             tile_layer.addTo(nodemap);
-        
-    
+{% if use_gpx == "True" %}
+              const gpx_url = '/GPX.gpx';
+      const gpx_options = {
+        async: true,
+        polyline_options: { color: 'red' },
+      };
+
+      const gpx = new L.GPX(gpx_url, gpx_options).on('loaded', (e) => {
+        map.fitBounds(e.target.getBounds());
+      }).addTo(nodemap);
+
+{% endif %}    
             var realtime_options = {"interval": 1000, "removeMissing": false, "start": true};
             
             realtime_options["pointToLayer"] = (f, latlng) => { var marker = new L.marker(latlng,

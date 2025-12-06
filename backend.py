@@ -50,6 +50,7 @@ parser.add_argument('--mqtt-clientid', help='MQTT client ID')
 parser.add_argument('--map-reports-only', default=True, help='Only use MQTT map reports to preserve privacy')
 parser.add_argument('--lastmessage', default=False, help='Store and share last messages from nodes')
 parser.add_argument('--data-dir', default='.', help='Location of nodes.db - node database')
+parser.add_argument('--use-gpx', default=False, help='Display GPX.gpx on the map')
 
 cliargs, _ = parser.parse_known_args()
 iniconfig = configparser.ConfigParser()
@@ -387,6 +388,7 @@ def main():
         logging.info("Connected to [%s] %s\n" % (me["user"]["shortName"], me["user"]["longName"]))
         pub.subscribe(onReceive, "meshtastic.receive")
     else:
+        me = None
         logging.info("No mesh connection defined with --port or --ble. Using MQTT.")
         mqttclient.username_pw_set(config('mqtt_user'), config('mqtt_pass'))
         mqttclient.connect(config('mqtt_host'), config('mqtt_port'))
@@ -430,7 +432,8 @@ def main():
     if "RAILWAY_PUBLIC_DOMAIN" in os.environ.keys():
         cliargs.geojson = "https://" + os.environ["RAILWAY_PUBLIC_DOMAIN"]
     mrh = MapRequestHandler(nodes, mynodes, config('latitude'), config('longitude'),
-                            config('zoom'), config('geojson'), config('exclusive'))
+                            config('zoom'), config('geojson'), config('exclusive'),
+                            config('use_gpx'))
     app = mrh.getApp()
 
     if "FLASK_RUN_FROM_CLI" in os.environ.keys():

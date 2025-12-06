@@ -8,22 +8,26 @@ log.setLevel(logging.ERROR)
 
 class MapRequestHandler:
 
-    def __init__(self, nodes, mynodes, lat, lon, zoom, geojson, exclusive, *args, **kwargs):
+    def __init__(self, nodes, mynodes, lat, lon, zoom, geojson, exclusive, use_gpx, *args, **kwargs):
         self.app = Flask(__name__)
         self.nodes = nodes
         self.mappage = ""
         self.mynodes = mynodes
         self.exclusive = exclusive
+        self.use_gpx = use_gpx
         self.app.add_url_rule("/", 'index', self.debug_map)
         self.app.add_url_rule("/map", 'map', self.debug_map)
         self.app.add_url_rule("/multipoint", 'multipoint', self.multipoint_json)
         self.app.add_url_rule("/links", 'links', self.links_json)
         self.app.add_url_rule("/nodes", 'nodes', self.nodes_json)
+        if self.use_gpx:
+            self.app.add_url_rule("/GPX.gpx", 'gpx', self.gpx)
         with open('map.html', 'r') as file:
            self.mappage = Template(file.read()).render(latitude=lat,
                                                        longitude=lon,
                                                        zoom=zoom,
-                                                       geojson=geojson)
+                                                       geojson=geojson,
+                                                       use_gpx=use_gpx)
 
     def getApp(self):
         return self.app
@@ -32,6 +36,12 @@ class MapRequestHandler:
         r = Response(response=self.mappage.encode(encoding='utf-8'), mimetype="text/html")
         r.headers.add('Referrer-Policy', 'no-referrer')
         r.headers.add('Access-Control-Allow-Origin', '*')
+        return r
+
+    def gpx(self):
+        with open('GPX.gpx', 'r') as file:
+            gpxdata = file.read()
+        r = Response(response=gpxdata, mimetype="application/gpx+xml")
         return r
 
     def multipoint_json(self):
